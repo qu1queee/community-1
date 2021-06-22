@@ -94,11 +94,36 @@ In the future, we should expect these to graduate to `v1beta1` and eventually `v
 
 The shape of the `Run` resource is fairly small and not expected to grow in breaking ways.
 
+### User Stories [optional]
+
+#### As a Shipwright Developer, I want to create a BuildRun when a Pull Request is merged on Git
+
+By Using Custom Tasks we allow Tekton Triggers to be able to generate resources that can be translated into Shipwright CRDs. With Tekton Triggers components deployed on a cluster, users should be able to define `TriggerTemplate`'s which contain `Run` resources that references `Build` ones. This will allow users to generate on-demand `BuildRun`'s from any existing `Build` on events occurrences.
+
+#### As a Shipwright Developer, I want to define params on a BuildRun when a Trigger Event occurs
+
+By Using Custom Tasks we allow Tekton Triggers to be able to generate resources that can be translated into Shipwright CRDs. With Tekton Triggers components deployed on a cluster, users should be able to define `TriggerBindings` in order to bind the event payload values into the `BuildRun` `spec.params`. For example, on a Git [pull-request](https://docs.github.com/en/developers/webhooks-and-events/webhooks/webhook-events-and-payloads#pull_request) event with an `opened` action, users should be able to bind the payload `url` and `branch` field into Shipwright Strategy parameters, so that a `BuildRun` could override the remote repository metadata ( _source and revision_ )
+
+#### As a Tekton Pipeline User, I want to use Shipwright for Building an image in my PipelineRun
+
+Existing Tekton Users should be able to define on their PipelineRun Custom Tasks that will trigger BuildRuns in the Background.
+
+TODO: Would be good to understand if this will work with a BuildRun that have a Build Spec embedded ( not supported today) or if this requires both Build and BuildRuns.
+
 ### Risks and Mitigations
 
 Integrating with Custom Tasks requires the Shipwright controller to have permission to view and update the status of _all `Run` resources_, even those that don't reference Shipwright `Build`s.
 This is due to limitations in Kubernetes RBAC -- there's no way to request access to only `Run` objects that reference `Build`s.
 As a result, a bug or exploit of the Shipwright controller could lead to unexpected or malicious behavior in the user's cluster.
+
+Related to Tekton PipelineRun's integration:
+
+- Today, we do not expose the `workspace` we use to share the user´s source code, as this is defined at runtime and not configurable via our strategies. If Tekton PipelineRun´s would require to have access to this workspace, we will need to expose it´s name via a Tekton parameter.
+- For use cases where we want to run some sort of testing ( _e.g. unit-test_ ) we should consider building Shipwright strategies that can support this. Ideally, we should donate strategies into Tekton/Catalog, for Tekton users using Shipwright in Tekton artifacts.
+
+Related to Triggers integration:
+
+- Depending on the Event type, we will have use cases where a `BuildRun` needs to override some of the core definitions in the `Build`, like the `spec.source.url` and `spec.source.revision`. This is not possible today, as we define at runtime the values for the [git step](https://github.com/shipwright-io/build/blob/main/pkg/reconciler/buildrun/resources/sources/git.go#L36-L43) in a way that is not configurable or that it can be parameterize via the [params feature](https://github.com/shipwright-io/build/pull/781).
 
 ## Drawbacks
 
